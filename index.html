@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CancelGuard</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f6fb;
+      color: #172033;
+    }
+
+    .container {
+      width: min(920px, 92%);
+      margin: auto;
+      padding: 30px 0;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      color: #2457d6;
+      margin-bottom: 8px;
+    }
+
+    .notice,
+    .panel {
+      background: white;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+    }
+
+    .notice {
+      background: #fff4d6;
+      border: 1px solid #edcf70;
+      line-height: 1.6;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    input,
+    button,
+    a {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    input {
+      border: 1px solid #ccd3df;
+    }
+
+    button {
+      border: none;
+      background: #2457d6;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1743ae;
+    }
+
+    .subscription-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(245px, 1fr));
+      gap: 14px;
+    }
+
+    .subscription {
+      border: 1px solid #dfe4ed;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .subscription h3 {
+      margin-top: 0;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 13px;
+      margin: 6px 0 12px;
+    }
+
+    .active {
+      background: #dcf7e6;
+      color: #14753e;
+    }
+
+    .cancelled {
+      background: #eeeeee;
+      color: #555555;
+    }
+
+    .actions {
+      display: grid;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .official-link {
+      background: #edf2ff;
+      color: #2457d6;
+      text-decoration: none;
+      text-align: center;
+    }
+
+    .empty {
+      color: #687386;
+    }
+
+    @media (max-width: 600px) {
+      form {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>CancelGuard</h1>
+      <p>Kelola dan batalkan langganan secara transparan.</p>
+    </header>
+
+    <div class="notice">
+      Website ini tidak meminta password, data kartu, atau akses akun.
+      Pembatalan dilakukan melalui halaman resmi penyedia layanan.
+    </div>
+
+    <section class="panel">
+      <h2>Tambah Langganan</h2>
+
+      <form id="subscriptionForm">
+        <input
+          id="name"
+          type="text"
+          placeholder="Nama layanan"
+          required
+        >
+
+        <input
+          id="price"
+          type="number"
+          placeholder="Biaya langganan"
+          min="0"
+          required
+        >
+
+        <input
+          id="nextDate"
+          type="date"
+          required
+        >
+
+        <input
+          id="cancelUrl"
+          type="url"
+          placeholder="URL halaman pembatalan resmi"
+          required
+        >
+
+        <button type="submit">
+          Tambahkan Langganan
+        </button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Daftar Langganan</h2>
+      <div id="subscriptionList" class="subscription-list"></div>
+    </section>
+  </div>
+
+  <script>
+    const form = document.getElementById("subscriptionForm");
+    const list = document.getElementById("subscriptionList");
+
+    let subscriptions = JSON.parse(
+      localStorage.getItem("subscriptions") || "[]"
+    );
+
+    function saveData() {
+      localStorage.setItem(
+        "subscriptions",
+        JSON.stringify(subscriptions)
+      );
+    }
+
+    function formatRupiah(value) {
+      return new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        maximumFractionDigits: 0
+      }).format(value);
+    }
+
+    function renderSubscriptions() {
+      list.innerHTML = "";
+
+      if (subscriptions.length === 0) {
+        list.innerHTML = `
+          <p class="empty">
+            Belum ada langganan yang ditambahkan.
+          </p>
+        `;
+        return;
+      }
+
+      subscriptions.forEach((subscription) => {
+        const item = document.createElement("article");
+        item.className = "subscription";
+
+        const statusClass =
+          subscription.status === "Aktif"
+            ? "active"
+            : "cancelled";
+
+        item.innerHTML = `
+          <h3>${escapeHtml(subscription.name)}</h3>
+
+          <p>
+            Biaya:
+            <strong>${formatRupiah(subscription.price)}</strong>
+          </p>
+
+          <p>
+            Penagihan berikutnya:
+            <strong>${subscription.nextDate}</strong>
+          </p>
+
+          <span class="status ${statusClass}">
+            ${subscription.status}
+          </span>
+
+          <div class="actions">
+            ${
+              subscription.status === "Aktif"
+                ? `
+                  <button onclick="markCancelled(${subscription.id})">
+                    Tandai Sudah Dibatalkan
+                  </button>
+                `
+                : ""
+            }
+
+            <a
+              class="official-link"
+              href="${escapeAttribute(subscription.cancelUrl)}"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Buka Halaman Resmi
+            </a>
+
+            <button
+              onclick="deleteSubscription(${subscription.id})"
+              style="background:#d93636"
+            >
+              Hapus
+            </button>
+          </div>
+        `;
+
+        list.appendChild(item);
+      });
+    }
+
+    function markCancelled(id) {
+      const confirmed = confirm(
+        "Apakah Anda sudah membatalkan langganan ini di halaman resmi?"
+      );
+
+      if (!confirmed) return;
+
+      subscriptions = subscriptions.map((subscription) => {
+        if (subscription.id === id) {
+          return {
+            ...subscription,
+            status: "Dibatalkan"
+          };
+        }
+
+        return subscription;
+      });
+
+      saveData();
+      renderSubscriptions();
+    }
+
+    function deleteSubscription(id) {
+      const confirmed = confirm(
+        "Hapus data langganan ini dari browser?"
+      );
+
+      if (!confirmed) return;
+
+      subscriptions = subscriptions.filter(
+        (subscription) => subscription.id !== id
+      );
+
+      saveData();
+      renderSubscriptions();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function escapeAttribute(value) {
+      return String(value)
+        .replaceAll('"', "%22")
+        .replaceAll("<", "%3C")
+        .replaceAll(">", "%3E");
+    }
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+
+      const subscription = {
+        id: Date.now(),
+        name: document.getElementById("name").value,
+        price: Number(document.getElementById("price").value),
+        nextDate: document.getElementById("nextDate").value,
+        cancelUrl: document.getElementById("cancelUrl").value,
+        status: "Aktif"
+      };
+
+      subscriptions.push(subscription);
+      saveData();
+      renderSubscriptions();
+      form.reset();
+
+      alert("Langganan berhasil ditambahkan.");
+    });
+
+    renderSubscriptions();
+  </script>
+</body>
+</html>

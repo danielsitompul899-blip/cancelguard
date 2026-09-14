@@ -4,7 +4,7 @@
 
 Aplikasi utilitas web ringan untuk mendeteksi, mencatat, dan menyediakan akses cepat ke halaman pembatalan resmi penyedia layanan (seperti Netflix, Spotify, dll.), tanpa memungut data sensitif pengguna.
 
-🌐 **Coba Aplikasi Live di sini:** (https://danielsitompul899-blip.giyhub.io/cancelguard)
+🌐 **Coba Aplikasi Live di sini:** (https://danielsitompul899-blip.github.io/cancelguard)
 
 ---
 
